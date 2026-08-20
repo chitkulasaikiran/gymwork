@@ -4,6 +4,14 @@ import { workoutService } from '../services/workoutService';
 import Navbar from '../components/Navbar';
 import { useToast } from '../components/Toast';
 
+const MEAL_TYPES = [
+  { key: 'preWorkout', label: 'Pre-Workout Meal', icon: '⚡', placeholder: 'e.g., Banana, oats, protein shake' },
+  { key: 'postWorkout', label: 'Post-Workout Meal', icon: '💪', placeholder: 'e.g., Protein shake, chicken breast' },
+  { key: 'breakfast', label: 'Breakfast', icon: '🍳', placeholder: 'e.g., Eggs, toast, oats' },
+  { key: 'lunch', label: 'Lunch', icon: '🍱', placeholder: 'e.g., Rice, chicken, veggies' },
+  { key: 'dinner', label: 'Dinner', icon: '🍽️', placeholder: 'e.g., Fish, salad, sweet potato' },
+];
+
 const DailyWorkout = () => {
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
@@ -20,9 +28,9 @@ const DailyWorkout = () => {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [existingImage, setExistingImage] = useState('');
-  const [mealFile, setMealFile] = useState(null);
-  const [mealPreview, setMealPreview] = useState(null);
-  const [existingMeal, setExistingMeal] = useState('');
+  const [mealFiles, setMealFiles] = useState({});
+  const [mealPreviews, setMealPreviews] = useState({});
+  const [existingMeals, setExistingMeals] = useState({});
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(!!editId);
   const [errors, setErrors] = useState({});
@@ -47,8 +55,8 @@ const DailyWorkout = () => {
       if (workout.progressImage) {
         setExistingImage(workout.progressImage);
       }
-      if (workout.mealImage) {
-        setExistingMeal(workout.mealImage);
+      if (workout.meals) {
+        setExistingMeals(workout.meals);
       }
     } catch (error) {
       addToast('Failed to load workout', 'error');
@@ -92,18 +100,18 @@ const DailyWorkout = () => {
     setExistingImage('');
   };
 
-  const handleMealChange = (e) => {
+  const handleMealChange = (key, e) => {
     const file = e.target.files[0];
     if (!file || !validateImage(file)) return;
-    setMealFile(file);
-    setMealPreview(URL.createObjectURL(file));
-    setExistingMeal('');
+    setMealFiles((prev) => ({ ...prev, [key]: file }));
+    setMealPreviews((prev) => ({ ...prev, [key]: URL.createObjectURL(file) }));
+    setExistingMeals((prev) => ({ ...prev, [key]: '' }));
   };
 
-  const removeMeal = () => {
-    setMealFile(null);
-    setMealPreview(null);
-    setExistingMeal('');
+  const removeMeal = (key) => {
+    setMealFiles((prev) => ({ ...prev, [key]: null }));
+    setMealPreviews((prev) => ({ ...prev, [key]: null }));
+    setExistingMeals((prev) => ({ ...prev, [key]: '' }));
   };
 
   const validate = () => {
@@ -134,7 +142,12 @@ const DailyWorkout = () => {
       if (formData.duration) fd.append('duration', formData.duration);
       if (formData.notes) fd.append('notes', formData.notes);
       if (imageFile) fd.append('progressImage', imageFile);
-      if (mealFile) fd.append('mealImage', mealFile);
+
+      for (const key of Object.keys(mealFiles)) {
+        if (mealFiles[key]) {
+          fd.append(`meal_${key}`, mealFiles[key]);
+        }
+      }
 
       if (editId) {
         await workoutService.updateWorkout(editId, fd);
@@ -267,35 +280,41 @@ const DailyWorkout = () => {
             )}
           </div>
 
-          <div className="form-group">
-            <label>Meal Image</label>
-            {(mealPreview || existingMeal) ? (
-              <div className="image-preview-container">
-                <img
-                  src={mealPreview || existingMeal}
-                  alt="Meal Preview"
-                  className="image-preview"
-                />
-                <button type="button" className="image-remove" onClick={removeMeal}>
-                  ×
-                </button>
-              </div>
-            ) : (
-              <label className="image-upload">
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.webp"
-                  onChange={handleMealChange}
-                />
-                <div className="image-upload-icon">🍽️</div>
-                <div className="image-upload-text">
-                  <span>Click to upload</span> meal photo
-                  <br />
-                  JPG, PNG, WebP (max 5MB)
-                </div>
-              </label>
-            )}
+          <div className="section-divider">
+            <span>Meals</span>
           </div>
+
+          {MEAL_TYPES.map((meal) => (
+            <div className="form-group" key={meal.key}>
+              <label>{meal.icon} {meal.label}</label>
+              {(mealPreviews[meal.key] || existingMeals[meal.key]) ? (
+                <div className="image-preview-container">
+                  <img
+                    src={mealPreviews[meal.key] || existingMeals[meal.key]}
+                    alt={meal.label}
+                    className="image-preview"
+                  />
+                  <button type="button" className="image-remove" onClick={() => removeMeal(meal.key)}>
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <label className="image-upload">
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    onChange={(e) => handleMealChange(meal.key, e)}
+                  />
+                  <div className="image-upload-icon">{meal.icon}</div>
+                  <div className="image-upload-text">
+                    <span>Click to upload</span> {meal.label.toLowerCase()} photo
+                    <br />
+                    JPG, PNG, WebP (max 5MB)
+                  </div>
+                </label>
+              )}
+            </div>
+          ))}
 
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? 'Saving Workout...' : 'SAVE WORKOUT'}

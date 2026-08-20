@@ -3,14 +3,12 @@ const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
 const streamifier = require('streamifier');
 
-// Configure cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Memory storage - files go to buffer, then streamed to Cloudinary
 const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
@@ -28,7 +26,11 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
 }).fields([
   { name: 'progressImage', maxCount: 1 },
-  { name: 'mealImage', maxCount: 1 },
+  { name: 'meal_preWorkout', maxCount: 1 },
+  { name: 'meal_postWorkout', maxCount: 1 },
+  { name: 'meal_breakfast', maxCount: 1 },
+  { name: 'meal_lunch', maxCount: 1 },
+  { name: 'meal_dinner', maxCount: 1 },
 ]);
 
 exports.uploadMiddleware = upload;
@@ -45,6 +47,8 @@ const uploadToCloudinary = (file, folder) => {
     streamifier.createReadStream(file.buffer).pipe(stream);
   });
 };
+
+const MEAL_KEYS = ['preWorkout', 'postWorkout', 'breakfast', 'lunch', 'dinner'];
 
 // @desc    Create a workout
 // @route   POST /api/workouts
@@ -80,9 +84,14 @@ exports.createWorkout = async (req, res) => {
       progressImageUrl = await uploadToCloudinary(req.files.progressImage[0], 'gym-workouts');
     }
 
-    let mealImageUrl = '';
-    if (req.files && req.files.mealImage) {
-      mealImageUrl = await uploadToCloudinary(req.files.mealImage[0], 'gym-meals');
+    const meals = {};
+    for (const key of MEAL_KEYS) {
+      const fieldName = `meal_${key}`;
+      if (req.files && req.files[fieldName] && req.files[fieldName][0]) {
+        meals[key] = await uploadToCloudinary(req.files[fieldName][0], 'gym-meals');
+      } else {
+        meals[key] = '';
+      }
     }
 
     const workout = await Workout.create({
@@ -93,7 +102,7 @@ exports.createWorkout = async (req, res) => {
       duration: duration || undefined,
       notes: notes || '',
       progressImage: progressImageUrl,
-      mealImage: mealImageUrl,
+      meals,
     });
 
     res.status(201).json({ success: true, data: workout });
@@ -159,16 +168,16 @@ exports.updateWorkout = async (req, res) => {
       updateData.progressImage = await uploadToCloudinary(req.files.progressImage[0], 'gym-workouts');
     }
 
-    if (req.files && req.files.mealImage) {
-      updateData.mealImage = await uploadToCloudinary(req.files.mealImage[0], 'gym-meals');
+    const meals = { ...workout.meals };
+    for (const key of MEAL_KEYS) {
+      const fieldName = `meal_${key}`;
+      if (req.files && req.files[fieldName] && req.files[fieldName][0]) {
+        meals[key] = await uploadToCloudinary(req.files[fieldName][0], 'gym-meals');
+      }
     }
+    updateData.meals = meals;
 
-    if (!req.files?.progressImage && updateData.progressImage === undefined) {
-      delete updateData.progressImage;
-    }
-    if (!req.files?.mealImage && updateData.mealImage === undefined) {
-      delete updateData.mealImage;
-    }
+    delete updateData.progressImage;
 
     workout = await Workout.findByIdAndUpdate(req.params.id, updateData, {
       new: true,

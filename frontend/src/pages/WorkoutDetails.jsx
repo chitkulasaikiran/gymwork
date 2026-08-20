@@ -4,6 +4,14 @@ import { workoutService } from '../services/workoutService';
 import Navbar from '../components/Navbar';
 import { useToast } from '../components/Toast';
 
+const MEAL_TYPES = [
+  { key: 'preWorkout', label: 'Pre-Workout Meal', icon: '⚡' },
+  { key: 'postWorkout', label: 'Post-Workout Meal', icon: '💪' },
+  { key: 'breakfast', label: 'Breakfast', icon: '🍳' },
+  { key: 'lunch', label: 'Lunch', icon: '🍱' },
+  { key: 'dinner', label: 'Dinner', icon: '🍽️' },
+];
+
 const WorkoutDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -111,15 +119,24 @@ const WorkoutDetails = () => {
             </div>
           )}
 
-          {workout.mealImage && (
-            <div className="detail-row">
-              <div className="detail-label">Meal Image</div>
-              <img
-                src={workout.mealImage}
-                alt="Meal"
-                className="detail-image"
-              />
-            </div>
+          {workout.meals && Object.values(workout.meals).some((v) => v) && (
+            <>
+              <div className="section-divider">
+                <span>Meals</span>
+              </div>
+              {MEAL_TYPES.map((meal) => (
+                workout.meals[meal.key] ? (
+                  <div className="detail-row" key={meal.key}>
+                    <div className="detail-label">{meal.icon} {meal.label}</div>
+                    <img
+                      src={workout.meals[meal.key]}
+                      alt={meal.label}
+                      className="detail-image"
+                    />
+                  </div>
+                ) : null
+              ))}
+            </>
           )}
 
           <div className="detail-actions">

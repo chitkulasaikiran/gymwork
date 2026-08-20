@@ -1,27 +1,17 @@
 const Workout = require('../models/Workout');
 const cloudinary = require('cloudinary').v2;
 const multer = require('multer');
-const path = require('path');
+const streamifier = require('streamifier');
 
-// Configure cloudinary if credentials are provided
-if (process.env.CLOUDINARY_CLOUD_NAME) {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
-  });
-}
-
-// Local storage configuration
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, path.join(__dirname, '../uploads'));
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  },
+// Configure cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+// Memory storage - files go to buffer, then streamed to Cloudinary
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -35,13 +25,26 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 },
 }).fields([
   { name: 'progressImage', maxCount: 1 },
   { name: 'mealImage', maxCount: 1 },
 ]);
 
 exports.uploadMiddleware = upload;
+
+const uploadToCloudinary = (file, folder) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder, resource_type: 'image' },
+      (error, result) => {
+        if (error) return reject(error);
+        resolve(result.secure_url);
+      }
+    );
+    streamifier.createReadStream(file.buffer).pipe(stream);
+  });
+};
 
 // @desc    Create a workout
 // @route   POST /api/workouts
@@ -56,7 +59,6 @@ exports.createWorkout = async (req, res) => {
     const workoutDate = new Date(date);
     workoutDate.setHours(0, 0, 0, 0);
 
-    // Check for duplicate workout on same day
     const existingWorkout = await Workout.findOne({
       userId: req.user.id,
       date: {
@@ -75,30 +77,12 @@ exports.createWorkout = async (req, res) => {
 
     let progressImageUrl = '';
     if (req.files && req.files.progressImage) {
-      const file = req.files.progressImage[0];
-      if (process.env.UPLOAD_TYPE === 'cloudinary' && process.env.CLOUDINARY_CLOUD_NAME) {
-        const result = await cloudinary.uploader.upload(file.path, {
-          folder: 'gym-workouts',
-          resource_type: 'image',
-        });
-        progressImageUrl = result.secure_url;
-      } else {
-        progressImageUrl = `/uploads/${file.filename}`;
-      }
+      progressImageUrl = await uploadToCloudinary(req.files.progressImage[0], 'gym-workouts');
     }
 
     let mealImageUrl = '';
     if (req.files && req.files.mealImage) {
-      const file = req.files.mealImage[0];
-      if (process.env.UPLOAD_TYPE === 'cloudinary' && process.env.CLOUDINARY_CLOUD_NAME) {
-        const result = await cloudinary.uploader.upload(file.path, {
-          folder: 'gym-meals',
-          resource_type: 'image',
-        });
-        mealImageUrl = result.secure_url;
-      } else {
-        mealImageUrl = `/uploads/${file.filename}`;
-      }
+      mealImageUrl = await uploadToCloudinary(req.files.mealImage[0], 'gym-meals');
     }
 
     const workout = await Workout.create({
@@ -171,35 +155,14 @@ exports.updateWorkout = async (req, res) => {
 
     let updateData = { ...req.body };
 
-    // Handle progress image upload if new image provided
     if (req.files && req.files.progressImage) {
-      const file = req.files.progressImage[0];
-      if (process.env.UPLOAD_TYPE === 'cloudinary' && process.env.CLOUDINARY_CLOUD_NAME) {
-        const result = await cloudinary.uploader.upload(file.path, {
-          folder: 'gym-workouts',
-          resource_type: 'image',
-        });
-        updateData.progressImage = result.secure_url;
-      } else {
-        updateData.progressImage = `/uploads/${file.filename}`;
-      }
+      updateData.progressImage = await uploadToCloudinary(req.files.progressImage[0], 'gym-workouts');
     }
 
-    // Handle meal image upload if new image provided
     if (req.files && req.files.mealImage) {
-      const file = req.files.mealImage[0];
-      if (process.env.UPLOAD_TYPE === 'cloudinary' && process.env.CLOUDINARY_CLOUD_NAME) {
-        const result = await cloudinary.uploader.upload(file.path, {
-          folder: 'gym-meals',
-          resource_type: 'image',
-        });
-        updateData.mealImage = result.secure_url;
-      } else {
-        updateData.mealImage = `/uploads/${file.filename}`;
-      }
+      updateData.mealImage = await uploadToCloudinary(req.files.mealImage[0], 'gym-meals');
     }
 
-    // Remove image fields from updateData if no new files
     if (!req.files?.progressImage && updateData.progressImage === undefined) {
       delete updateData.progressImage;
     }

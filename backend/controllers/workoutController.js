@@ -36,7 +36,10 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-}).single('progressImage');
+}).fields([
+  { name: 'progressImage', maxCount: 1 },
+  { name: 'mealImage', maxCount: 1 },
+]);
 
 exports.uploadMiddleware = upload;
 
@@ -71,15 +74,30 @@ exports.createWorkout = async (req, res) => {
     }
 
     let progressImageUrl = '';
-    if (req.file) {
+    if (req.files && req.files.progressImage) {
+      const file = req.files.progressImage[0];
       if (process.env.UPLOAD_TYPE === 'cloudinary' && process.env.CLOUDINARY_CLOUD_NAME) {
-        const result = await cloudinary.uploader.upload(req.file.path, {
+        const result = await cloudinary.uploader.upload(file.path, {
           folder: 'gym-workouts',
           resource_type: 'image',
         });
         progressImageUrl = result.secure_url;
       } else {
-        progressImageUrl = `/uploads/${req.file.filename}`;
+        progressImageUrl = `/uploads/${file.filename}`;
+      }
+    }
+
+    let mealImageUrl = '';
+    if (req.files && req.files.mealImage) {
+      const file = req.files.mealImage[0];
+      if (process.env.UPLOAD_TYPE === 'cloudinary' && process.env.CLOUDINARY_CLOUD_NAME) {
+        const result = await cloudinary.uploader.upload(file.path, {
+          folder: 'gym-meals',
+          resource_type: 'image',
+        });
+        mealImageUrl = result.secure_url;
+      } else {
+        mealImageUrl = `/uploads/${file.filename}`;
       }
     }
 
@@ -91,6 +109,7 @@ exports.createWorkout = async (req, res) => {
       duration: duration || undefined,
       notes: notes || '',
       progressImage: progressImageUrl,
+      mealImage: mealImageUrl,
     });
 
     res.status(201).json({ success: true, data: workout });
@@ -152,22 +171,40 @@ exports.updateWorkout = async (req, res) => {
 
     let updateData = { ...req.body };
 
-    // Handle image upload if new image provided
-    if (req.file) {
+    // Handle progress image upload if new image provided
+    if (req.files && req.files.progressImage) {
+      const file = req.files.progressImage[0];
       if (process.env.UPLOAD_TYPE === 'cloudinary' && process.env.CLOUDINARY_CLOUD_NAME) {
-        const result = await cloudinary.uploader.upload(req.file.path, {
+        const result = await cloudinary.uploader.upload(file.path, {
           folder: 'gym-workouts',
           resource_type: 'image',
         });
         updateData.progressImage = result.secure_url;
       } else {
-        updateData.progressImage = `/uploads/${req.file.filename}`;
+        updateData.progressImage = `/uploads/${file.filename}`;
       }
     }
 
-    // Remove progressImage from updateData if no new file
-    if (!req.file && updateData.progressImage === undefined) {
+    // Handle meal image upload if new image provided
+    if (req.files && req.files.mealImage) {
+      const file = req.files.mealImage[0];
+      if (process.env.UPLOAD_TYPE === 'cloudinary' && process.env.CLOUDINARY_CLOUD_NAME) {
+        const result = await cloudinary.uploader.upload(file.path, {
+          folder: 'gym-meals',
+          resource_type: 'image',
+        });
+        updateData.mealImage = result.secure_url;
+      } else {
+        updateData.mealImage = `/uploads/${file.filename}`;
+      }
+    }
+
+    // Remove image fields from updateData if no new files
+    if (!req.files?.progressImage && updateData.progressImage === undefined) {
       delete updateData.progressImage;
+    }
+    if (!req.files?.mealImage && updateData.mealImage === undefined) {
+      delete updateData.mealImage;
     }
 
     workout = await Workout.findByIdAndUpdate(req.params.id, updateData, {

@@ -34,6 +34,9 @@ const workoutSchema = new mongoose.Schema(
     progressImage: {
       type: String,
     },
+    mealImage: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

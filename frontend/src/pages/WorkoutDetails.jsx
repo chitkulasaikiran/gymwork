@@ -101,11 +101,25 @@ const WorkoutDetails = () => {
           )}
 
           {workout.progressImage && (
-            <img
-              src={workout.progressImage}
-              alt="Progress"
-              className="detail-image"
-            />
+            <div className="detail-row">
+              <div className="detail-label">Progress Image</div>
+              <img
+                src={workout.progressImage}
+                alt="Progress"
+                className="detail-image"
+              />
+            </div>
+          )}
+
+          {workout.mealImage && (
+            <div className="detail-row">
+              <div className="detail-label">Meal Image</div>
+              <img
+                src={workout.mealImage}
+                alt="Meal"
+                className="detail-image"
+              />
+            </div>
           )}
 
           <div className="detail-actions">

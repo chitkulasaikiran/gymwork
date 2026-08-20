@@ -20,6 +20,9 @@ const DailyWorkout = () => {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [existingImage, setExistingImage] = useState('');
+  const [mealFile, setMealFile] = useState(null);
+  const [mealPreview, setMealPreview] = useState(null);
+  const [existingMeal, setExistingMeal] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(!!editId);
   const [errors, setErrors] = useState({});
@@ -44,6 +47,9 @@ const DailyWorkout = () => {
       if (workout.progressImage) {
         setExistingImage(workout.progressImage);
       }
+      if (workout.mealImage) {
+        setExistingMeal(workout.mealImage);
+      }
     } catch (error) {
       addToast('Failed to load workout', 'error');
       navigate('/dashboard');
@@ -59,21 +65,22 @@ const DailyWorkout = () => {
     }
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
+  const validateImage = (file) => {
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       addToast('Only JPG, JPEG, PNG, and WebP files are allowed', 'error');
-      return;
+      return false;
     }
-
     if (file.size > 5 * 1024 * 1024) {
       addToast('Image size must be less than 5MB', 'error');
-      return;
+      return false;
     }
+    return true;
+  };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file || !validateImage(file)) return;
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setExistingImage('');
@@ -83,6 +90,20 @@ const DailyWorkout = () => {
     setImageFile(null);
     setImagePreview(null);
     setExistingImage('');
+  };
+
+  const handleMealChange = (e) => {
+    const file = e.target.files[0];
+    if (!file || !validateImage(file)) return;
+    setMealFile(file);
+    setMealPreview(URL.createObjectURL(file));
+    setExistingMeal('');
+  };
+
+  const removeMeal = () => {
+    setMealFile(null);
+    setMealPreview(null);
+    setExistingMeal('');
   };
 
   const validate = () => {
@@ -113,6 +134,7 @@ const DailyWorkout = () => {
       if (formData.duration) fd.append('duration', formData.duration);
       if (formData.notes) fd.append('notes', formData.notes);
       if (imageFile) fd.append('progressImage', imageFile);
+      if (mealFile) fd.append('mealImage', mealFile);
 
       if (editId) {
         await workoutService.updateWorkout(editId, fd);
@@ -235,9 +257,39 @@ const DailyWorkout = () => {
                   accept=".jpg,.jpeg,.png,.webp"
                   onChange={handleImageChange}
                 />
-                <div className="image-upload-icon">📷</div>
+                <div className="image-upload-icon">💪</div>
                 <div className="image-upload-text">
-                  <span>Click to upload</span> or drag and drop
+                  <span>Click to upload</span> progress photo
+                  <br />
+                  JPG, PNG, WebP (max 5MB)
+                </div>
+              </label>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label>Meal Image</label>
+            {(mealPreview || existingMeal) ? (
+              <div className="image-preview-container">
+                <img
+                  src={mealPreview || existingMeal}
+                  alt="Meal Preview"
+                  className="image-preview"
+                />
+                <button type="button" className="image-remove" onClick={removeMeal}>
+                  ×
+                </button>
+              </div>
+            ) : (
+              <label className="image-upload">
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp"
+                  onChange={handleMealChange}
+                />
+                <div className="image-upload-icon">🍽️</div>
+                <div className="image-upload-text">
+                  <span>Click to upload</span> meal photo
                   <br />
                   JPG, PNG, WebP (max 5MB)
                 </div>

@@ -62,6 +62,13 @@ const Dashboard = () => {
                   className="workout-card-image"
                 />
               )}
+              {todayWorkout.mealImage && (
+                <img
+                  src={todayWorkout.mealImage}
+                  alt="Meal"
+                  className="workout-card-image"
+                />
+              )}
               <div className="duplicate-actions">
                 <Link
                   to={`/dashboard/workouts/${todayWorkout._id}`}

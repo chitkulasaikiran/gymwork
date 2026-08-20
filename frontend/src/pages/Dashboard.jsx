@@ -49,10 +49,11 @@ const Dashboard = () => {
           {loading ? (
             <div className="loading">Loading...</div>
           ) : todayWorkout ? (
-            <div>
-              <div className="detail-row">
-                <div className="workout-card-name">{todayWorkout.workoutName}</div>
-                <div className="workout-card-duration">{todayWorkout.duration} min</div>
+            <div className="daily-card">
+              <div className="workout-name">{todayWorkout.workoutName}</div>
+              <div className="workout-meta">
+                {formatDate(todayWorkout.date)}
+                {todayWorkout.duration && ` • ${todayWorkout.duration} min`}
               </div>
               {todayWorkout.progressImage && (
                 <img
@@ -78,6 +79,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="empty-state">
+              <div className="empty-icon">💪</div>
               <p>You haven't logged today's workout yet.</p>
               <Link to="/dashboard/workout" className="btn btn-primary">
                 Log Today's Workout

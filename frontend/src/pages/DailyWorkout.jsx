@@ -22,6 +22,7 @@ const DailyWorkout = () => {
   const [existingImage, setExistingImage] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(!!editId);
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (editId) {
@@ -53,6 +54,9 @@ const DailyWorkout = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: '' });
+    }
   };
 
   const handleImageChange = (e) => {
@@ -81,17 +85,24 @@ const DailyWorkout = () => {
     setExistingImage('');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
+  const validate = () => {
+    const newErrors = {};
     if (!formData.workoutName.trim()) {
-      addToast('Workout name is required', 'error');
-      return;
+      newErrors.workoutName = 'Workout name is required';
     }
     if (!formData.exercises.trim()) {
-      addToast('Exercises are required', 'error');
-      return;
+      newErrors.exercises = 'Exercises are required';
     }
+    if (formData.duration && (isNaN(formData.duration) || Number(formData.duration) < 1)) {
+      newErrors.duration = 'Duration must be a positive number';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validate()) return;
 
     setLoading(true);
     try {
@@ -141,7 +152,7 @@ const DailyWorkout = () => {
           <h1>{editId ? 'Edit Workout' : "Today's Workout"}</h1>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="form-group">
             <label>Date *</label>
             <input
@@ -160,9 +171,10 @@ const DailyWorkout = () => {
               name="workoutName"
               value={formData.workoutName}
               onChange={handleChange}
-              required
+              className={errors.workoutName ? 'error' : ''}
               placeholder="e.g., Chest & Triceps"
             />
+            {errors.workoutName && <div className="error-text">{errors.workoutName}</div>}
           </div>
 
           <div className="form-group">
@@ -171,10 +183,11 @@ const DailyWorkout = () => {
               name="exercises"
               value={formData.exercises}
               onChange={handleChange}
-              required
+              className={errors.exercises ? 'error' : ''}
               rows={6}
               placeholder={"Bench Press - 4 x 10\nIncline Dumbbell Press - 3 x 12\nCable Fly - 3 x 15"}
             />
+            {errors.exercises && <div className="error-text">{errors.exercises}</div>}
           </div>
 
           <div className="form-group">
@@ -184,9 +197,11 @@ const DailyWorkout = () => {
               name="duration"
               value={formData.duration}
               onChange={handleChange}
+              className={errors.duration ? 'error' : ''}
               placeholder="e.g., 60"
               min="1"
             />
+            {errors.duration && <div className="error-text">{errors.duration}</div>}
           </div>
 
           <div className="form-group">

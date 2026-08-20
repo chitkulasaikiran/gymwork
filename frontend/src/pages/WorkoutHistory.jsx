@@ -37,11 +37,12 @@ const WorkoutHistory = () => {
           <div className="loading">Loading workouts...</div>
         ) : workouts.length === 0 ? (
           <div className="empty-state">
-            <p>No workouts logged yet.</p>
+            <div className="empty-icon">📋</div>
+            <p>No workouts logged yet. Start tracking your progress!</p>
           </div>
         ) : (
-          workouts.map((workout) => (
-            <WorkoutCard key={workout._id} workout={workout} />
+          workouts.map((workout, index) => (
+            <WorkoutCard key={workout._id} workout={workout} index={index} />
           ))
         )}
       </div>

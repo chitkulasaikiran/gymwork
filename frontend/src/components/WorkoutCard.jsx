@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 
-const WorkoutCard = ({ workout }) => {
+const WorkoutCard = ({ workout, index = 0 }) => {
   const formatDate = (date) => {
     return new Date(date).toLocaleDateString('en-IN', {
       day: 'numeric',
@@ -10,7 +10,7 @@ const WorkoutCard = ({ workout }) => {
   };
 
   return (
-    <div className="workout-card">
+    <div className="workout-card" style={{ animationDelay: `${index * 0.05}s` }}>
       <div className="workout-card-date">{formatDate(workout.date)}</div>
       <div className="workout-card-name">{workout.workoutName}</div>
       {workout.duration && (
